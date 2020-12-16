@@ -1,0 +1,94 @@
+import pygame
+from .constants import *
+from .piece import Piece
+
+class Board:
+    def __init__(self):
+        self.board = [[], [], [], [], [], [], [], []]
+        self.selected = None
+        self.red_left = self.white_left = 12
+        self.red_kings = self.white_kings = 0
+        self.turn = RED
+        self.create_board()
+
+    def draw_squares(self, win):
+        win.fill(WHITE)
+        pygame.draw.rect(win, BLACK, (OFFSET, 0, COLS*SQUARE_SIZE, ROWS*SQUARE_SIZE))
+        for row in range(ROWS):
+            for col in range(row % 2, COLS, 2):
+                pygame.draw.rect(win, RED, (col*SQUARE_SIZE + OFFSET, row*SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE))
+        if self.selected is not None:
+            pygame.draw.rect(win, TEAL, (self.selected.col*SQUARE_SIZE + OFFSET, self.selected.row*SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE), 2)
+
+    def can_move(self, piece, row, col):
+        if self.board[row][col] != 0:
+            return False
+        if (row - piece.row)*piece.direction <= 0 and not piece.get_king():
+            return False
+        if abs(col - piece.col) != 1 or abs(row - piece.row) != 1:
+            return False
+        return True
+
+    def move(self, piece, row, col):
+        self.board[piece.row][piece.col], self.board[row][col] = self.board[row][col], self.board[piece.row][piece.col]
+        piece.move(row, col)
+        self.selected = None
+        if piece.color == WHITE and row == ROWS - 1:
+            piece.make_king()
+            self.white_kings += 1
+        elif piece.color == RED and row == 0:
+            piece.make_king()
+            self.red_kings += 1
+
+    def can_jump(self, piece, row, col):
+        if self.board[row][col] != 0:
+            return False
+        if (row - piece.row)*piece.direction <= 0 and not piece.get_king():
+            return False
+        if abs(col - piece.col) != 2 or abs(row - piece.row) != 2:
+            return False
+        if self.board[(row + piece.row)//2][(col + piece.col)//2].color == RED and piece.color == WHITE:
+            return True
+        elif self.board[(row + piece.row)//2][(col + piece.col)//2].color == WHITE and piece.color == RED:
+            return True
+        return False
+
+    def jump(self, piece, row, col):
+        jumped_piece = self.board[(row + piece.row)//2][(col + piece.col)//2]
+        self.board[(row + piece.row)//2][(col + piece.col)//2] = 0
+        self.move(piece, row, col)
+        self.selected = None
+        if jumped_piece.color == RED:
+            self.red_left -= 1
+        else:
+            self.white_left -= 1
+
+    def create_board(self):
+        for row in range(ROWS):
+            for col in range(COLS):
+                if row % 2 != col % 2:
+                    if row < 3:
+                        piece = Piece(row, col, WHITE)
+                        self.board[row].append(piece)
+                    elif row > 4:
+                        piece = Piece(row, col, RED)
+                        self.board[row].append(piece)
+                    else:
+                        self.board[row].append(0)
+                else:
+                    self.board[row].append(0)
+
+    def check_game_over(self):
+        if self.red_left == 0:
+            return WHITE
+        elif self.white_left == 0:
+            return RED
+
+    def get_piece(self, row, col):
+        return self.board[row][col]
+
+    def get_selected(self):
+        return self.selected
+
+    def get_turn(self):
+        return self.turn
